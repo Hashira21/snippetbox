@@ -11,11 +11,21 @@ func home(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello from Snippetbox"))
 }
 
+func snippetView(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Display a specific snippet..."))
+}
+
+func snippetCreate(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Display a form for creating a new snippet..."))
+}
+
 func main() {
 	//Используем функцию http.NewServeMux() для инициализации нового роутера
 	//затем регистрируем функцию home как обработчик для URL пути "/"
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", home)
+	mux.HandleFunc("/{$}", home)
+	mux.HandleFunc("/snippet/view", snippetView)
+	mux.HandleFunc("/snippet/create", snippetCreate)
 
 	//Напечатать log сообщение о старте работы сервера
 	log.Print("starting server on :4000")
