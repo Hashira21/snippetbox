@@ -9,6 +9,16 @@ func main() {
 	//Используем функцию http.NewServeMux() для инициализации нового роутера
 	//затем регистрируем функцию home как обработчик для URL пути "/"
 	mux := http.NewServeMux()
+
+	// Создаем файл сервер, который обслуживает файлы из каталога ./us/static
+	// Отметим, что путь связан с местом расположения проекта
+	fileServer := http.FileServer(http.Dir("./ui/static/"))
+
+	// Используем mux.Handle() для регистрации файлового сервера в качестве обработчика
+	// для всех URL путей, которые начинаются с /static/. Для сопоставления путей мы
+	// удаляем /static префикс перед тем, как запрос достигнет файлового сервера
+	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
+
 	mux.HandleFunc("GET /{$}", home)
 	mux.HandleFunc("GET /snippet/view/{id}", snippetView)
 	mux.HandleFunc("GET /snippet/create", snippetCreate)
