@@ -1,36 +1,31 @@
 package main
 
 import (
-	"log"
+	"flag"
+	"log/slog"
 	"net/http"
+	"os"
 )
 
+type application struct {
+	logger *slog.Logger
+}
+
 func main() {
-	//Используем функцию http.NewServeMux() для инициализации нового роутера
-	//затем регистрируем функцию home как обработчик для URL пути "/"
-	mux := http.NewServeMux()
+	addr := flag.String("addr", ":4000", "HTTP NETWORK ADDRESS")
+	flag.Parse()
 
-	// Создаем файл сервер, который обслуживает файлы из каталога ./us/static
-	// Отметим, что путь связан с местом расположения проекта
-	fileServer := http.FileServer(http.Dir("./ui/static/"))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	// Используем mux.Handle() для регистрации файлового сервера в качестве обработчика
-	// для всех URL путей, которые начинаются с /static/. Для сопоставления путей мы
-	// удаляем /static префикс перед тем, как запрос достигнет файлового сервера
-	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
+	app := &application{
+		logger: logger,
+	}
 
-	mux.HandleFunc("GET /{$}", home)
-	mux.HandleFunc("GET /snippet/view/{id}", snippetView)
-	mux.HandleFunc("GET /snippet/create", snippetCreate)
-	mux.HandleFunc("POST /snippet/create", snippetCreatePost)
+	// log сообщение о старте работы сервера
+	logger.Info("starting server", slog.String("addr", *addr))
 
-	//Напечатать log сообщение о старте работы сервера
-	log.Print("starting server on :4000")
+	err := http.ListenAndServe(*addr, app.routes())
+	logger.Error(err.Error())
+	os.Exit(1)
 
-	//Для запуска нового веб сервера используется функция http.ListenAndServe().
-	//На вход подается два параметра: TCP адрес для прослущивания (:4000)
-	//и роутер. Если функция вернёт ошибку выведется лог с помощью log.Fatal()
-	//Каждая ошибка не nil
-	err := http.ListenAndServe(":4000", mux)
-	log.Fatal(err)
 }
