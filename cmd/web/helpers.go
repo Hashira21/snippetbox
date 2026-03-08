@@ -10,10 +10,10 @@ import (
 func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	var (
 		method = r.Method
-		url    = r.URL.RequestURI()
+		uri    = r.URL.RequestURI()
 	)
 
-	app.logger.Error(err.Error(), "method", method, "url", url)
+	app.logger.Error(err.Error(), "method", method, "uri", uri)
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 

@@ -51,7 +51,7 @@ func newTemplateCache() (map[string]*template.Template, error) {
 		name := filepath.Base(page)
 
 		//Parse the base template file into a template set
-		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.tmpl")
+		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.tmpl.html")
 		if err != nil {
 			return nil, err
 		}
