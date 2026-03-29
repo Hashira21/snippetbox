@@ -16,10 +16,10 @@ import (
 // Это связано с тем, что структурные поля должны быть экспортированы для того,
 // чтобы быть прочитанными пакетом html/template при рендеринге шаблона.
 type snippetCreateForm struct {
-	Title   string
-	Content string
-	Expires int
-	validator.Validator
+	Title               string `form:"title"`
+	Content             string `form:"content"`
+	Expires             int    `form:"expires"`
+	validator.Validator `form:"-"`
 }
 
 // Объявляем домашний обработчик, который печатает слайс байтов, содержащий
@@ -76,34 +76,16 @@ func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
-	// Сначала вызываем r.ParseForm() который добавляет данные из POST запроса
-	// в r.PostForm map. Так же применимо к PUT и PATCH запросам.
-	// в случае ошибки используем app.ClientError() хелпер для отправки ответа 400 Bad Request пользователю
-	err := r.ParseForm()
+	// Declare a new empty instance of the snippetCreateForm struct.
+	var form snippetCreateForm
+
+	err := app.decodePostForm(r, &form)
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
-	}
-
-	// Используем метод r.PostForm.Get() для получения title, content из r.PostForm map
-	// Метод r.PostForm.Get() всегда возращает данные формы как строку
-	// Однако мы ожидаем значение expires как число
-	// Поэтому нужно конвентировать используя strconv.Atoi()
-	// В случае ошибки конвертации отправить ошибку 400 Bad Request
-	expires, err := strconv.Atoi(r.PostForm.Get("expires"))
-	if err != nil {
-		app.clientError(w, http.StatusBadRequest)
-		return
-	}
-
-	form := snippetCreateForm{
-		Title:   r.PostForm.Get("title"),
-		Content: r.PostForm.Get("content"),
-		Expires: expires,
 	}
 
 	// Проверка правильности введённых данных
-
 	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
 	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
 	form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")

@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/go-playground/form/v4"
 )
 
 func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
@@ -62,4 +65,30 @@ func (app *application) newTemplateData(r *http.Request) templateData {
 	return templateData{
 		CurrentYear: time.Now().Year(),
 	}
+}
+
+// dst - target destination into which we want to decode the form data
+func (app *application) decodePostForm(r *http.Request, dst any) error {
+	// Вызываем ParseForm() как и в snippetCreatePost обработчике
+	err := r.ParseForm()
+	if err != nil {
+		return err
+	}
+
+	// Вызов Decode() с dst в качестве параметра назначения
+	err = app.formDecoder.Decode(dst, r.PostForm)
+	if err != nil {
+		// При попытке использования неверного назначения метод Decode()
+		// возвращает ошибку с типом form.InvalidDecoderError.
+		// Используем errors.As() для проверки этого и паники.
+		var invalidDecoderError *form.InvalidDecoderError
+
+		if errors.As(err, &invalidDecoderError) {
+			panic(err)
+		}
+
+		return err
+	}
+
+	return nil
 }
