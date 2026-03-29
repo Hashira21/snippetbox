@@ -3,13 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strings"
-	"unicode/utf8"
 
 	"net/http"
 	"strconv"
 
 	"github.com/hashira21/snippetbox/internal/models"
+	"github.com/hashira21/snippetbox/internal/validator"
 )
 
 // snippetCreateForm для представления данных формы и ошибок проверки полей формы.
@@ -17,10 +16,10 @@ import (
 // Это связано с тем, что структурные поля должны быть экспортированы для того,
 // чтобы быть прочитанными пакетом html/template при рендеринге шаблона.
 type snippetCreateForm struct {
-	Title       string
-	Content     string
-	Expires     int
-	FieldErrors map[string]string
+	Title   string
+	Content string
+	Expires int
+	validator.Validator
 }
 
 // Объявляем домашний обработчик, который печатает слайс байтов, содержащий
@@ -98,36 +97,26 @@ func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request
 	}
 
 	form := snippetCreateForm{
-		Title:       r.PostForm.Get("title"),
-		Content:     r.PostForm.Get("content"),
-		Expires:     expires,
-		FieldErrors: map[string]string{}, // мапа для хранения ошибок
+		Title:   r.PostForm.Get("title"),
+		Content: r.PostForm.Get("content"),
+		Expires: expires,
 	}
 
 	// Проверка правильности введённых данных
 
-	// title не пустой и не больше 100 символов
-	if strings.TrimSpace(form.Title) == "" {
-		form.FieldErrors["title"] = "This field cannot be blank"
-	} else if utf8.RuneCountInString(form.Title) > 100 {
-		form.FieldErrors["title"] = "This field cannot be more than 100 characters long"
-	}
+	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
+	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
+	form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
+	form.CheckField(validator.PermittedValue(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
 
-	// content не пустой
-	if strings.TrimSpace(form.Content) == "" {
-		form.FieldErrors["content"] = "This field cannot be blank"
-	}
-
-	// Значение expires 1, 7 или 365
-	if form.Expires != 1 && form.Expires != 7 && form.Expires != 365 {
-		form.FieldErrors["expires"] = "This field must equal 1, 7 or 365"
-	}
-
+	// Use the Valid() method to see if any of the checks failed. If they did,
+	// then re-render the template passing in the form in the same way as
+	// before.
 	// Если были ошибки валидации, то в шаблон create.tmpl.html
 	// передаются данные из экземпляра snippetCreateForm в качестве динамических данных
 	// в поле Form. Используется HTTP код 422 Unprocessable Entity, когда отправляется
 	// ответ, указывающий на ошибку при проверке.
-	if len(form.FieldErrors) > 0 {
+	if !form.Valid() {
 		data := app.newTemplateData(r)
 		data.Form = form
 		app.render(w, r, http.StatusUnprocessableEntity, "create.tmpl.html", data)
