@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"html/template"
@@ -63,6 +64,8 @@ func main() {
 	sessionManager.Store = mysqlstore.New(db)
 	sessionManager.Lifetime = 12 * time.Hour
 
+	sessionManager.Cookie.Secure = true
+
 	// And add it to the application dependencies.
 	app := &application{
 		logger:         logger,
@@ -72,13 +75,27 @@ func main() {
 		sessionManager: sessionManager,
 	}
 
-	// log сообщение о старте работы сервера
-	logger.Info("starting server", slog.String("addr", *addr))
+	// Инициализируем структуру tls.Config для хренения нестандартных настроек
+	// Настроим набор элиптических кривых с реализацией в assembler
+	tlsConfig := &tls.Config{
+		CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+	}
 
-	// Because the err variable is now already declared in the code above, we need
-	// to use the assignment operator = here, instead of the := 'declare and assign'
-	// operator
-	err = http.ListenAndServe(*addr, app.routes())
+	// Инициализируем новую http.Server структуру.
+	srv := &http.Server{
+		Addr:         *addr,
+		Handler:      app.routes(),
+		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
+		TLSConfig:    tlsConfig,
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	// log сообщение о старте работы сервера
+	logger.Info("starting server", "addr", srv.Addr)
+
+	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
 	logger.Error(err.Error())
 	os.Exit(1)
 
