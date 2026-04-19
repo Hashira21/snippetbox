@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/justinas/nosurf"
 )
 
 func commonHeaders(next http.Handler) http.Handler {
@@ -59,4 +61,35 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (app *application) requireAuthentication(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Если пользователь не аутентифицирован, редирект на страницу входа
+		// И выйти из цепочки middleware
+		if !app.isAuthenticated(r) {
+			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+			return
+		}
+
+		// В противном случае установите заголовок "Cache-Control: no-store",
+		// чтобы страницы требующие аутентификации, не сохранялись в кэше браузера пользователя
+		// или в другом промежуточном кэше.
+		w.Header().Add("Cache-Control", "no-store")
+
+		// Вызвать следующий обработчик
+		next.ServeHTTP(w, r)
+	})
+}
+
+// Функция preventCSRF, которая использует специальный файл cookie CSRF с заданными атрибутами Secure, Path и HttpOnly.
+func preventCSRF(next http.Handler) http.Handler {
+	csrfHandler := nosurf.New(next)
+	csrfHandler.SetBaseCookie(http.Cookie{
+		HttpOnly: true,
+		Path:     "/",
+		Secure:   true,
+	})
+
+	return csrfHandler
 }
