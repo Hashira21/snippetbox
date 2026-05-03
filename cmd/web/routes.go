@@ -3,18 +3,16 @@ package main
 import (
 	"net/http"
 
+	"github.com/hashira21/snippetbox/ui"
 	"github.com/justinas/alice"
 )
 
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 
-	fileServer := http.FileServer(http.Dir("./ui/static/"))
-
 	// Используем mux.Handle() для регистрации файлового сервера в качестве обработчика
-	// для всех URL путей, которые начинаются с /static/. Для сопоставления путей мы
-	// удаляем /static префикс перед тем, как запрос достигнет файлового сервера
-	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
+	// для всех URL путей, которые начинаются с /static/.
+	mux.Handle("GET /static/", http.FileServerFS(ui.Files))
 
 	// Create a new middleware chain containing the middleware specific to our
 	// dynamic application routes. For now, this chain will only contain the
