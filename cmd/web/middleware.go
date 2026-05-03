@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -92,4 +93,33 @@ func preventCSRF(next http.Handler) http.Handler {
 	})
 
 	return csrfHandler
+}
+
+func (app *application) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Извлекаем authenticatedUserID из сеанса с помощью GetInt().
+		// Если в сеансе нет значения "authenticatedUserID", метод
+		// вернет нулевое значение для int (0). В этом случае мы, как обычно,
+		// вызываем следующий обработчик в цепочке и возвращаем результат.
+		id := app.sessionManager.GetInt(r.Context(), "authenticatedUserID")
+		if id == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Проверка, существует ли пользователь в бд
+		exists, err := app.users.Exists(id)
+		if err != nil {
+			app.serverError(w, r, err)
+			return
+		}
+
+		// Если пользователь найден, то запрос исходит от аутентифицированного пользователя
+		if exists {
+			ctx := context.WithValue(r.Context(), isAuthenticatedContextKey, true)
+			r = r.WithContext(ctx)
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
